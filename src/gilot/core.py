@@ -111,7 +111,10 @@ class CommitRecord:
     def compose(cls, commit: Commit, full: bool = False, detail_in_array: bool = False, project: str = "") -> CommitRecord:
         if is_merge(commit):
             total = dict(insertions=0, deletions=0, lines=0, files=0)
-            file_json = json.dumps(dict()) if full else None
+            if detail_in_array:
+                file_json = json.dumps([]) if full else None
+            else:
+                file_json = json.dumps(dict()) if full else None
         else:
             total = commit.stats.total
             # format detail files in array instead of dict
