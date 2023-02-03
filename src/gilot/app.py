@@ -7,6 +7,7 @@ import sys
 from fnmatch import fnmatch
 from logging import getLogger
 from typing import Callable, List, Optional
+import rabbitpy
 
 import gilot
 
@@ -75,9 +76,26 @@ def handle_log(args) -> None:
         args.repo,
         branch=args.branch,
         duration=duration,
-        full=args.full
+        full=args.full,
+        detail_in_array=args.detail_in_array,
+        project=args.project
     )
-    df.to_csv(args.output)
+    if args.rabbit != "":
+        data = df.to_dict("records")
+        handle_rabbitmq(args.rabbit, data, args.rabbit_exchange, args.rabbit_routing_key)
+    else:
+        df.to_csv(args.output)
+
+
+def handle_rabbitmq(conn_str, data, exchange, routing_key):
+    try:
+        with rabbitpy.Connection(conn_str) as conn:
+            with conn.channel() as channel:
+                for commit in data:
+                    message = rabbitpy.Message(channel, json.dumps(commit))
+                    message.publish(exchange, routing_key)
+    except Exception as e:
+        print("Error: {}".format(e))
 
 
 def handle_plot(args) -> None:
@@ -218,6 +236,27 @@ def add_log_option(parser):
         "--full",
         action="store_true",
         help="If this flag is enabled, detailed data including the commuted file name will be output.")
+
+    parser.add_argument(
+        "--project",
+        help="Project name")
+
+    parser.add_argument(
+        "--detail_in_array",
+        action="store_true",
+        help="If this flag is enabled, detailed data will be in array format instead of dict.")
+
+    parser.add_argument(
+        "--rabbit",
+        help="Output to rabbitMQ, the rabbitmq connection.")
+
+    parser.add_argument(
+        "--rabbit_exchange",
+        help="RabbitMQ exchange.")
+
+    parser.add_argument(
+        "--rabbit_routing_key",
+        help="RabbitMQ routing key.")
 
     parser.set_defaults(handler=handle_log)
     return parser

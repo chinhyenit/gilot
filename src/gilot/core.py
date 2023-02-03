@@ -99,6 +99,7 @@ def is_merge(commit: Commit) -> bool:
 class CommitRecord:
     date: str
     hexsha : str
+    project: str
     author : str
     insertions : int
     deletions :int
@@ -107,17 +108,27 @@ class CommitRecord:
     files_json : Optional[str]
 
     @ classmethod
-    def compose(cls, commit: Commit, full: bool = False) -> CommitRecord:
+    def compose(cls, commit: Commit, full: bool = False, detail_in_array: bool = False, project: str = "") -> CommitRecord:
         if is_merge(commit):
             total = dict(insertions=0, deletions=0, lines=0, files=0)
             file_json = json.dumps(dict()) if full else None
         else:
             total = commit.stats.total
-            file_json = json.dumps(commit.stats.files) if full else None
+            # format detail files in array instead of dict
+            if detail_in_array:
+                file_details = []
+                for file_name, details in commit.stats.files.items():
+                    if file_name.startswith("."):
+                        file_name = file_name[1:]
+                    file_details.append({"file": file_name, "details": details})
+                file_json = json.dumps(file_details)
+            else:
+                file_json = json.dumps(commit.stats.files) if full else None
 
         return cls(
             date=timestamp_to_date_text(commit.committed_date),
             hexsha=commit.hexsha,
+            project=project,
             author=commit.author.name,
             insertions=total["insertions"],
             deletions=total["deletions"],
@@ -194,9 +205,9 @@ class CommitDataFrame(pd.DataFrame):
             [commit.to_dict() for commit in commits if commit is not None]))
 
     @ classmethod
-    def from_commits(cls,commits: Iterator[Commit],*,full:bool = False) -> CommitDataFrame:
+    def from_commits(cls,commits: Iterator[Commit],*,full:bool = False, detail_in_array:bool = False, project: str = "") -> CommitDataFrame:
         return cls.from_records(
-            [CommitRecord.compose(c, full=full) for c in commits])
+            [CommitRecord.compose(c, full=full, detail_in_array=detail_in_array, project=project) for c in commits])
 
     def filter_files(self,is_match : Callable[[str],bool]) -> CommitDataFrame:
         records = [cr.filter_files(is_match) for cr in self.to_records()]
@@ -238,6 +249,8 @@ def from_dir(
         dirName: str = "./",*,
         branch: str = "origin/HEAD",
         duration: Duration = DEFAULT_DURATION,
-        full : bool = False) :
+        full : bool = False,
+        detail_in_array: bool = False,
+        project: str = "") :
     commits = Repo.from_dir(dirName, branch=branch).commits(duration)
-    return CommitDataFrame.from_commits(commits,full=full)
+    return CommitDataFrame.from_commits(commits,full=full, detail_in_array=detail_in_array, project=project)
