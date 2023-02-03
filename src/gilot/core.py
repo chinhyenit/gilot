@@ -132,7 +132,7 @@ class CommitRecord:
             date=timestamp_to_date_text(commit.committed_date),
             hexsha=commit.hexsha,
             project=project,
-            author=commit.author.name,
+            author=commit.author.email.split("@")[0] if "@" in commit.author.email else commit.author.email,
             insertions=total["insertions"],
             deletions=total["deletions"],
             lines=total["lines"],
