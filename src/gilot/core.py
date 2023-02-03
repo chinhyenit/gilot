@@ -105,7 +105,7 @@ class CommitRecord:
     deletions :int
     lines:int
     files: int
-    files_json : Optional[str] | list
+    files_json : Optional[str]
 
     @ classmethod
     def compose(cls, commit: Commit, full: bool = False, detail_in_array: bool = False, project: str = "") -> CommitRecord:
@@ -121,7 +121,7 @@ class CommitRecord:
                     if file_name.startswith("."):
                         file_name = file_name[1:]
                     file_details.append({"file": file_name, "details": details})
-                file_json = file_details
+                file_json = json.dumps(file_details)
             else:
                 file_json = json.dumps(commit.stats.files) if full else None
 

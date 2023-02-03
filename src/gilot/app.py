@@ -83,6 +83,8 @@ def handle_log(args) -> None:
     if args.rabbit != "":
         df['date'] = df.index.strftime('%Y-%m-%d %H:%M:%S')
         data = df.to_dict("records")
+        for commit in data:
+            commit["files_json"] = json.loads(commit["files_json"])
         handle_rabbitmq(args.rabbit, data, args.rabbit_exchange, args.rabbit_routing_key)
     else:
         df.to_csv(args.output)
